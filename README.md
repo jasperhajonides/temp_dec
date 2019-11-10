@@ -24,4 +24,8 @@ If you use a large amount of features, you might want to consider applying PCA t
 ```Python
 use_pca == True
 ```
-You can also regulate how many components you would like to keep or how much variance you would like to explain. As a general rule of thumb maintaining 95% of variance 
+You can also regulate how many components you would like to keep or how much variance you would like to explain. As a general rule of thumb maintaining 95% of variance will maintain enough signal and reduces feature space.
+
+```Python
+pca_components == .95
+```
