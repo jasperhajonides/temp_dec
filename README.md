@@ -3,8 +3,15 @@
 
 This toolbox facilitates neural decoding of time series. Under the hood it uses mainly scikit-learn functions.
 * Single and multi time point decoding 
-* dissimilarity 
+* Dissimilarity analyses (yet to be added)
 
+Download these functions and add them by running:
+
+```Python
+import sys
+sys.path.append('Functions')
+from decoding_functions import *
+```
 
 
 
