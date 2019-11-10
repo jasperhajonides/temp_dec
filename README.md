@@ -23,7 +23,7 @@ This function takes in the data X (ndarray; trials by channels by time), labels 
 #### Using a sliding time window
 If there is information in the temporal dynamics of the signal, using a sliding time window will increase decoding accuracy (and smooth the signal). We also demean the signal within each window, this avoids the issue of baselining. 
 ```Python
-if temporal_dymanics == True:
+temporal_dymanics == True
 ```
 #### Applying PCA
 If you use a large amount of features, you might want to consider applying PCA to your features before applying your classifier. In addition, LDA is fairly sensitive to noise to in terms of denoising this could also be beneficial. 
