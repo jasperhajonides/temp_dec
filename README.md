@@ -36,3 +36,6 @@ You can also regulate how many components you would like to keep or how much var
 ```Python
 pca_components == .95
 ```
+
+
+[work in progress.]
