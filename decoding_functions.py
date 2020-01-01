@@ -20,6 +20,8 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 import progressbar
+from sklearn.decomposition import PCA
+
 
 def matrix_vector_shift(matrix,vector,n_bins):
 
@@ -132,6 +134,6 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
         accuracy[tp] = accuracy_score(y,label_pred[:,tp])
     bar.finish()
 
-    return centered_prediction, accuracy, time
+    return centered_prediction, accuracy, time, prediction
 
 
