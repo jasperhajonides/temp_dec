@@ -1,22 +1,36 @@
 # Supervised Learning Toolbox for Neural data
 
+This toolbox facilitates neural decoding of time series. Under the hood it uses scikit-learn functions.
 
-This toolbox facilitates neural decoding of time series. Under the hood it uses mainly scikit-learn functions.
-* Single and multi time point decoding 
-* Dissimilarity analyses (yet to be added)
-
+## Set-up
 Download these functions and add them by running:
 
 ```Python
-import sys
-sys.path.append('Functions')
-from decoding_functions import *
+cd /path/to/directory
+git clone https://github.com/jasperhajonides/Supervised_Learning_TB.git
+```
+
+Now add this path to your Python settings:
+
+```Python
+export PYTHONPATH=/path/to/directory/Supervised_Learning_TB:$PYTHONPATH
 ```
 
 
+## Requirements
 
-## Single and multi time point decoding 
+```Python
+matplotlib==2.0.2
+numpy==1.13.1
+scipy==0.19.1
+```
+
+## Example
 This function takes in the data X (ndarray; trials by channels by time), labels y (ndarray; vector), and a time (ndarray, vector).
+
+```Python
+import Supervised_Learning_TB
+```
 
 
 
@@ -25,6 +39,8 @@ If there is information in the temporal dynamics of the signal, using a sliding 
 ```Python
 temporal_dymanics == True
 ```
+
+
 #### Applying PCA
 If you use a large amount of features, you might want to consider applying PCA to your features before applying your classifier. In addition, LDA is fairly sensitive to noise to in terms of denoising this could also be beneficial. 
 
