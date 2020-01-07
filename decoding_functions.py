@@ -19,7 +19,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
-import progressbar
+# import progressbar
 from sklearn.decomposition import PCA
 
 
@@ -86,13 +86,13 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
     centered_prediction = np.zeros(([n_bins,n_time])) * np.nan
     X_demeaned = np.zeros((n_trials,n_channels,size_window)) * np.nan
     #progressbar 
-    bar = progressbar.ProgressBar(maxval=n_time,\
-         	widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-    bar.start()
+#     bar = progressbar.ProgressBar(maxval=n_time,\
+#          	widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+#     bar.start()
 
 
     for tp in range((size_window-1),n_time):
-        bar.update(tp+1)
+#         bar.update(tp+1)
 
         #demean channels
         if temporal_dymanics == True:
@@ -132,7 +132,7 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
         out = matrix_vector_shift(prediction[:,:,tp],y,n_bins) #we want the predicted class to always be in the centre.
         centered_prediction[:,tp] = out.mean(0) # avg across trials
         accuracy[tp] = accuracy_score(y,label_pred[:,tp])
-    bar.finish()
+#     bar.finish()
 
     return centered_prediction, accuracy, time, prediction
 
