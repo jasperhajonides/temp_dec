@@ -42,16 +42,28 @@ temporal_dymanics == True
 
 
 #### Applying PCA
-If you use a large amount of features, you might want to consider applying PCA to your features before applying your classifier. In addition, LDA is fairly sensitive to noise to in terms of denoising this could also be beneficial. 
+If you use a large amount of features, you might want to consider applying PCA to your features before applying your classifier. In addition, classifiers are sensitive to noise rejecting noise components from the data can be beneficial. 
 
 ```Python
 use_pca == True
 ```
-You can also regulate how many components you would like to keep or how much variance you would like to explain. As a general rule of thumb maintaining 95% of variance will maintain enough signal and reduces feature space.
+You can also regulate how many components you would like to keep (setting the pca_components variant to > 1) or how much variance you would like to explain (setting the pca_components variant to < 1). As a general rule of thumb maintaining 95% of variance will maintain enough signal and reduces feature space. 
 
 ```Python
 pca_components == .95
 ```
 
 
-[work in progress.]
+
+#### Classifiers
+Different classifiers are supported, selected in accordance with Grootwagers et al (2017) j.cogn.neurosci.
+> LDA: linear disciminant analysis
+> LG: logistic regression
+> GNB: Gaussian Naive Bayes
+> maha: Nearest Neighbours using mahalanobis distance. 
+
+
+```Python
+classifier == 'LDA'
+```
+
