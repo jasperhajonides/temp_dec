@@ -19,6 +19,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+from sklearn.svm import LinearSVC
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+
+
 # import progressbar
 from sklearn.decomposition import PCA
 
@@ -43,9 +49,35 @@ def matrix_vector_shift(matrix,vector,n_bins):
     
 def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier='LDA',use_pca=False,pca_components=.95,temporal_dymanics=True):
     """
-    This function takes a time course and uses a sliding window approach to 
+    Apply a multi-class classifier (amount of class is equal to n_bins) to each time point.
+    
+    The temporal_dynamics decoding takes a time course and uses a sliding window approach to 
     decode the feature of interest. We reshape the window from trials x channels x 
     time to trials x channels*time and demean every channel 
+    
+    
+    Temporal_dynamics:
+    (rows=features; columns=time)
+    (n = window_size)
+    
+    	t  t+1  t+2     t+n		combined t until t+n
+        1 	 1 	 1 ..	 1        1
+        2 	 2 	 2 ..	 2        2
+        3 	 3 	 3 ..	 3        3
+        4 	 4 	 4 ..	 4 ---->  4
+        5 	 5 	 5 ..	 5        5
+        6 	 6 	 6 ..	 6        6
+        7 	 7 	 7 .. 	 7        7
+    							  1
+								  2
+								  3
+								  4
+								  5
+								  6
+								  7
+								  1
+								  ..
+								  7
 
     Parameters
     ----------
@@ -56,7 +88,7 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
     time  : ndarray
             vector with time labels locked to the cue
     bins  : integer
-            how many stimulus classes do you have in total?
+            how many stimulus classes are present
     size_window :  integer
             size of the sliding window
     n_folds :  integer
@@ -66,6 +98,8 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
             options:
             - LDA: LinearDiscriminantAnalysis
             - LG: LogisticRegression
+            - maha: nearest neighbours mahalanobis distance
+            - GNB: Gaussian Naive Bayes 
     use_pca     : {bool, integer}  
     		Apply PCA or not     
     pca_components   : integer
@@ -78,29 +112,32 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
     accuracy : ndarray
             matrix containing class predictions for each time point. 
     """
-    [n_trials,n_channels,n_time] = X_all[:,:,:].shape
+    
+    # Get shape 
+    [n_trials,n_features,n_time] = X_all[:,:,:].shape
 
+	#initialise variables
     prediction = np.zeros(([n_trials,n_bins,n_time])) * np.nan
     label_pred = np.zeros(([n_trials,n_time])) * np.nan
     accuracy   = np.zeros(n_time) * np.nan
     centered_prediction = np.zeros(([n_bins,n_time])) * np.nan
-    X_demeaned = np.zeros((n_trials,n_channels,size_window)) * np.nan
-    #progressbar 
-#     bar = progressbar.ProgressBar(maxval=n_time,\
-#          	widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-#     bar.start()
+    X_demeaned = np.zeros((n_trials,n_features,size_window)) * np.nan
 
-
+	
     for tp in range((size_window-1),n_time):
-#         bar.update(tp+1)
 
-        #demean channels
         if temporal_dymanics == True:
+            #demean features within the sliding window.
+            
+            cc=0 
             for s in range((1-size_window),1): 
-                X_demeaned[:,:,s] = X_all[:,:,tp+s] - X_all[:,:,(tp-(size_window-1)):(tp+1)].mean(2)
+                X_demeaned[:,:,cc] = X_all[:,:,tp+s] - X_all[:,:,(tp-(size_window-1)):(tp+1)].mean(2)
+                cc=cc+1
+            # reshape into trials by features*time     
             X = X_demeaned.reshape(X_demeaned.shape[0],X_demeaned.shape[1]*X_demeaned.shape[2])
         else:
         	X = X_all[:,:,tp]
+        
 
         # reduce dimensionality
         if use_pca == True:
@@ -119,12 +156,21 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
             X_test = scaler.transform(X_test)
 
             #define classifier 
-            if classifier == 'LDA':
+            if classifier=='LDA':
                 clf = LinearDiscriminantAnalysis()
-            elif classifier == 'LR':
+            elif classifier=='GNB':
+                clf=GaussianNB()
+            elif classifier == 'svm':
+                clf=CalibratedClassifierCV(LinearSVC())
+            elif classifier == 'LG':
                 clf = LogisticRegression(random_state=0, solver='lbfgs',multi_class='multinomial')
+            elif classifier == 'maha':
+                clf = KNeighborsClassifier(n_neighbors=15,metric='mahalanobis', metric_params={'V': np.cov(X_train[:,:].T)})
+
+	
             # train
             clf.fit(X_train ,y_train)
+            
             # test either binary or class probabilities
             prediction[test_index,:,tp] = clf.predict_proba(X_test)
             label_pred[test_index,tp] = clf.predict(X_test)
@@ -132,8 +178,5 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
         out = matrix_vector_shift(prediction[:,:,tp],y,n_bins) #we want the predicted class to always be in the centre.
         centered_prediction[:,tp] = out.mean(0) # avg across trials
         accuracy[tp] = accuracy_score(y,label_pred[:,tp])
-#     bar.finish()
 
     return centered_prediction, accuracy, time, prediction
-
-
