@@ -57,10 +57,10 @@ pca_components == .95
 
 #### Classifiers
 Different classifiers are supported, selected in accordance with Grootwagers et al (2017) j.cogn.neurosci.
-> LDA: linear disciminant analysis
-> LG: logistic regression
-> GNB: Gaussian Naive Bayes
-> maha: Nearest Neighbours using mahalanobis distance. 
+* LDA: linear disciminant analysis
+* LG: logistic regression
+* GNB: Gaussian Naive Bayes
+* maha: Nearest Neighbours using mahalanobis distance. 
 
 
 ```Python
