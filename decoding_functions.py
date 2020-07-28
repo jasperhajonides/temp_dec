@@ -44,7 +44,7 @@ def matrix_vector_shift(matrix,vector,n_bins):
 		matrix_shift[row,:] = np.roll(matrix[row,:],round(n_bins/2)-vector[row])
 	return matrix_shift
     
-    
+
     
     
 def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier='LDA',use_pca=False,pca_components=.95,temporal_dymanics=True):
