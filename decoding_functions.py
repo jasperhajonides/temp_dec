@@ -1,14 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# /Users/jasperhvdm/Documents/Scripts/Supervised_Learning_TB/decoding_functions.py
-# usage:
-"""
-import sys
-sys.path.append('/Users/jasperhvdm/Documents/Scripts/Supervised_Learning_TB')
-from decoding_functions import *
-"""
-# author: JE Hajonides Oct 2019
+# author: JE Hajonides Jul 2020
 
 import numpy as np
 import math
@@ -221,12 +214,3 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
     return output
     
     
-
-
-
-# to do:
-# - check if input dimensions match
-# - packaging
-# - gitignore
-# - git tags
-# - pytest
