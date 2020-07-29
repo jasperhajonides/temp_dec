@@ -20,7 +20,7 @@ export PYTHONPATH=/path/to/directory/Supervised_Learning_TB:$PYTHONPATH
 ## Requirements
 
 ```Python
-matplotlib==2.0.2
+sklearn==0.21.3
 numpy==1.13.1
 scipy==0.19.1
 ```
