@@ -1,11 +1,11 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# /Users/jasperhvdm/Documents/Scripts/EEG_feature_object/Functions/decoding_functions.py
+# /Users/jasperhvdm/Documents/Scripts/Supervised_Learning_TB/decoding_functions.py
 # usage:
 """
 import sys
-sys.path.append('/Users/jasperhvdm/Documents/Scripts/EEG_feature_object/Functions')
+sys.path.append('/Users/jasperhvdm/Documents/Scripts/Supervised_Learning_TB')
 from decoding_functions import *
 """
 # author: JE Hajonides Oct 2019
