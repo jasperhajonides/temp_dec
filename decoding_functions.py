@@ -10,10 +10,9 @@ from decoding_functions import *
 """
 # author: JE Hajonides Oct 2019
 
-
 import numpy as np
 import math
-import scipy.io
+import sys
 from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
@@ -26,9 +25,11 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 
 
-# import progressbar
-from sklearn.decomposition import PCA
-
+def check_input_dim(X_all,y,time):
+    if len(y) != X_all.shape[0]:
+        raise ValueError('Number of labels (y) does not match the first dimension of the data.')
+    elif len(time) != X_all.shape[2]:
+        raise ValueError('Number of timepoints provided does not match the third dimension of the data.')
 
 def matrix_vector_shift(matrix,vector,n_bins):
 
@@ -45,7 +46,9 @@ def matrix_vector_shift(matrix,vector,n_bins):
 		matrix_shift[row,:] = np.roll(matrix[row,:],round(n_bins/2)-vector[row])
 	return matrix_shift
 
-def convolve_with_cosine(distances):
+def convolve_matrix_with_cosine(distances):
+    """Fits a cosine to the class predictions. This assumes 
+   neighbouring classes are more similar than distant classes """
     #read in data
     [nbins,ntimepts] = distances.shape
     output = np.zeros(ntimepts) # define output
@@ -60,7 +63,7 @@ def convolve_with_cosine(distances):
 
     
     
-def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier='LDA',use_pca=False,pca_components=.95,temporal_dymanics=True):
+def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier='LDA',use_pca=False,pca_components=.95,temporal_dynamics=True):
     """
     Apply a multi-class classifier (amount of class is equal to n_bins) to each time point.
     
@@ -113,24 +116,39 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
             - LG: LogisticRegression
             - maha: nearest neighbours mahalanobis distance
             - GNB: Gaussian Naive Bayes 
-    use_pca     : {bool, integer}  
+    use_pca     : bool
     		Apply PCA or not     
     pca_components   : integer
             reduce features to N principal components, if N < 1 it indicates the % of explained variance
-    temporal_dynamics : {bool, integer}
+    temporal_dynamics : bool
             use sliding window (default is True), if false its just single time-point decoding
 
     Returns
     --------
-    accuracy : ndarray
-            matrix containing class predictions for each time point. 
+    dictionary:
+        accuracy : ndarray
+                dimensions: time
+                matrix containing class predictions for each time point. 
+        centered_prediction: ndarray
+                dimensions: classes, time
+                matrix containing evidence for each class for each time point. 
+        single_trial_evidence: ndarray
+                dimensions: trials, classes, time
+                evidence for each class, for each timepoint, for each trial
+        cos_convolved: ndarray
+                dimensions: time
+                cosine convolved evidence for each timepoint.
     """
     
+    #### do dimensions of the input data match?
+    check_input_dim(X_all,y,time)
+
     # Get shape 
     [n_trials,n_features,n_time] = X_all[:,:,:].shape
 
-	#initialise variables
-    prediction = np.zeros(([n_trials,n_bins,n_time])) * np.nan
+	#initialise variables 
+    # np.nan to avoid zeroes in resulting variable 
+    single_trial_evidence = np.zeros(([n_trials,n_bins,n_time])) * np.nan
     label_pred = np.zeros(([n_trials,n_time])) * np.nan
     accuracy   = np.zeros(n_time) * np.nan
     centered_prediction = np.zeros(([n_bins,n_time])) * np.nan
@@ -139,10 +157,9 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
 	
     for tp in range((size_window-1),n_time):
 
-        if temporal_dymanics == True:
+        if temporal_dynamics:
             #demean features within the sliding window.
-            
-            cc=0 
+            cc=0
             for s in range((1-size_window),1): 
                 X_demeaned[:,:,cc] = X_all[:,:,tp+s] - X_all[:,:,(tp-(size_window-1)):(tp+1)].mean(2)
                 cc=cc+1
@@ -151,9 +168,8 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
         else:
         	X = X_all[:,:,tp]
         
-
         # reduce dimensionality
-        if use_pca == True:
+        if use_pca:
             pca = PCA(n_components=pca_components)
             X = pca.fit(X).transform(X)
             
@@ -168,7 +184,7 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
             X_train = scaler.transform(X_train)
             X_test = scaler.transform(X_test)
 
-            #define classifier 
+            #define classifier #get classifier function 
             if classifier=='LDA':
                 clf = LinearDiscriminantAnalysis()
             elif classifier=='GNB':
@@ -179,18 +195,38 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
                 clf = LogisticRegression(random_state=0, solver='lbfgs',multi_class='multinomial')
             elif classifier == 'maha':
                 clf = KNeighborsClassifier(n_neighbors=15,metric='mahalanobis', metric_params={'V': np.cov(X_train[:,:].T)})
-
+            else:
+                raise ValueError('Classifier not correctly defined.')
 	
             # train
             clf.fit(X_train ,y_train)
             
             # test either binary or class probabilities
-            prediction[test_index,:,tp] = clf.predict_proba(X_test)
+            single_trial_evidence[test_index,:,tp] = clf.predict_proba(X_test)
             label_pred[test_index,tp] = clf.predict(X_test)
 
-        out = matrix_vector_shift(prediction[:,:,tp],y,n_bins) #we want the predicted class to always be in the centre.
+        out = matrix_vector_shift(single_trial_evidence[:,:,tp],y,n_bins) #we want the predicted class to always be in the centre.
         centered_prediction[:,tp] = out.mean(0) # avg across trials
         accuracy[tp] = accuracy_score(y,label_pred[:,tp])
-    cos_convolved = convolve_with_cosine(centered_prediction)
+    cos_convolved = convolve_matrix_with_cosine(centered_prediction)
 
-    return centered_prediction, accuracy, time, prediction,cos_convolved
+    output = {
+    "centered_prediction": centered_prediction,
+    "accuracy": accuracy,
+    "single_trial_evidence": single_trial_evidence,
+    "cos_convolved" : cos_convolved,
+    "time": time
+    }
+
+    return output
+    
+    
+
+
+
+# to do:
+# - check if input dimensions match
+# - packaging
+# - gitignore
+# - git tags
+# - pytest
