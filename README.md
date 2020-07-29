@@ -3,17 +3,10 @@
 This toolbox facilitates neural decoding of time series. Under the hood it uses scikit-learn functions.
 
 ## Set-up
-Download these functions and add them by running:
+Install using pip
 
-```Python
-cd /path/to/directory
-git clone https://github.com/jasperhajonides/Supervised_Learning_TB.git
-```
-
-Now add this path to your Python settings:
-
-```Python
-export PYTHONPATH=/path/to/directory/Supervised_Learning_TB:$PYTHONPATH
+```unix
+pip install temp_dec
 ```
 
 
@@ -29,7 +22,7 @@ scipy==0.19.1
 This function takes in the data X (ndarray; trials by channels by time), labels y (ndarray; vector), and a time (ndarray, vector).
 
 ```Python
-import Supervised_Learning_TB
+from temp_dec import decoding_functions
 ```
 
 
