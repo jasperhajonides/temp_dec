@@ -12,6 +12,7 @@ from decoding_functions import *
 
 
 import numpy as np
+import math
 import scipy.io
 from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
 from sklearn.decomposition import PCA
@@ -43,6 +44,18 @@ def matrix_vector_shift(matrix,vector,n_bins):
 	for row in range(0,r):
 		matrix_shift[row,:] = np.roll(matrix[row,:],round(n_bins/2)-vector[row])
 	return matrix_shift
+
+def convolve_with_cosine(distances):
+    #read in data
+    [nbins,ntimepts] = distances.shape
+    output = np.zeros(ntimepts) # define output
+    #theta -pi to pi
+    theta = np.arange((nbins+1))/(nbins)*(2*math.pi)-math.pi
+    theta = theta[1:(nbins+1)]
+    for tp in range(0,ntimepts):
+        t = np.cos(theta)*distances[:,tp]
+        output[tp] = t.mean(0)            
+    return output
     
 
     
@@ -178,5 +191,6 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
         out = matrix_vector_shift(prediction[:,:,tp],y,n_bins) #we want the predicted class to always be in the centre.
         centered_prediction[:,tp] = out.mean(0) # avg across trials
         accuracy[tp] = accuracy_score(y,label_pred[:,tp])
+    cos_convolved = convolve_with_cosine(centered_prediction)
 
-    return centered_prediction, accuracy, time, prediction
+    return centered_prediction, accuracy, time, prediction,cos_convolved
