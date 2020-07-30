@@ -191,7 +191,7 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
             X_train = scaler.transform(X_train)
             X_test = scaler.transform(X_test)
 
-
+            #initiate classifier
             clf = get_classifier(classifier)
 
             # train
