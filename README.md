@@ -39,12 +39,12 @@ temporal_dymanics == True
 If you use a large amount of features, you might want to consider applying PCA to your features before applying your classifier. In addition, classifiers are sensitive to noise rejecting noise components from the data can be beneficial. 
 
 ```Python
-use_pca == True
+use_pca = True
 ```
 You can also regulate how many components you would like to keep (setting the pca_components variant to > 1) or how much variance you would like to explain (setting the pca_components variant to < 1). As a general rule of thumb maintaining 95% of variance will maintain enough signal and reduces feature space. 
 
 ```Python
-pca_components == .95
+pca_components = .95
 ```
 
 
@@ -58,6 +58,6 @@ Different classifiers are supported, selected in accordance with Grootwagers et 
 
 
 ```Python
-classifier == 'LDA'
+classifier = 'LDA'
 ```
 
