@@ -1,4 +1,4 @@
-# Supervised Learning Toolbox for Neural data
+# Supervised Learning Function for Neural data
 
 This toolbox facilitates neural decoding of time series. Under the hood it uses scikit-learn functions.
 
