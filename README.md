@@ -31,7 +31,7 @@ decoding_functions.temporal_decoding(X,y,time)
 #### Using a sliding time window
 If there is information in the temporal dynamics of the signal, using a sliding time window will increase decoding accuracy (and smooth the signal). We also demean the signal within each window, this avoids the issue of baselining. 
 ```Python
-temporal_dymanics == True
+temporal_dymanics = True
 ```
 
 
