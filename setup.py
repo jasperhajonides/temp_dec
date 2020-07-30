@@ -13,12 +13,12 @@ from setuptools import find_packages, setup, Command
 
 # Package meta-data.
 NAME = 'temp_dec'
-DESCRIPTION = 'Supervised learning simple function for temporal decoding.'
-URL = 'https://github.com/jasperhajonides/temp_dec/archive/v1.0.1.tar.gz'
+DESCRIPTION = 'Supervised learning function for temporal decoding.'
+URL = 'https://github.com/jasperhajonides/temp_dec/archive/v1.0.2.tar.gz'
 EMAIL = 'jasperhajonides@gmail.com'
 AUTHOR = 'Jasper Hajonides'
 REQUIRES_PYTHON = '>=3.6.0'
-VERSION = 'v1.0.1'
+VERSION = 'v1.0.2'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
