@@ -18,7 +18,7 @@ numpy==1.13.1
 scipy==0.19.1
 ```
 
-## Example
+## Python implementation
 This function takes in the data X (ndarray; trials by channels by time), labels y (ndarray; vector), and a time (ndarray, vector).
 
 ```Python
@@ -32,6 +32,7 @@ decoding_functions.temporal_decoding(X,y,time)
 If there is information in the temporal dynamics of the signal, using a sliding time window will increase decoding accuracy (and smooth the signal). We also demean the signal within each window, this avoids the issue of baselining. 
 ```Python
 temporal_dymanics = True
+size_window=5
 ```
 
 
@@ -61,3 +62,15 @@ Different classifiers are supported, selected in accordance with Grootwagers et 
 classifier = 'LDA'
 ```
 
+#### All options incorporated
+
+
+``` Python
+output = decoding_functions.temporal_decoding(data,labels,time,
+                                                n_bins=number_of_categories,
+                                                n_folds=10,
+                                                classifier='LDA',
+                                                use_pca=True,pca_components=.95,
+                                                temporal_dynamics=True,
+                                                size_window=20)
+```
