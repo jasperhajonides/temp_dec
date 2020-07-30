@@ -53,8 +53,22 @@ def convolve_matrix_with_cosine(distances):
         output[tp] = t.mean(0)            
     return output
     
+def get_classifier(classifier):
+    #define classifier #get classifier function 
+    if classifier=='LDA':
+        clf = LinearDiscriminantAnalysis()
+    elif classifier=='GNB':
+        clf=GaussianNB()
+    elif classifier == 'svm':
+        clf=CalibratedClassifierCV(LinearSVC())
+    elif classifier == 'LG':
+        clf = LogisticRegression(random_state=0, solver='lbfgs',multi_class='multinomial')
+    elif classifier == 'maha':
+        clf = KNeighborsClassifier(n_neighbors=15,metric='mahalanobis', metric_params={'V': np.cov(X_train[:,:].T)})
+    else:
+        raise ValueError('Classifier not correctly defined.')
+    return clf
 
-    
     
 def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier='LDA',use_pca=False,pca_components=.95,temporal_dynamics=True):
     """
@@ -177,20 +191,9 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
             X_train = scaler.transform(X_train)
             X_test = scaler.transform(X_test)
 
-            #define classifier #get classifier function 
-            if classifier=='LDA':
-                clf = LinearDiscriminantAnalysis()
-            elif classifier=='GNB':
-                clf=GaussianNB()
-            elif classifier == 'svm':
-                clf=CalibratedClassifierCV(LinearSVC())
-            elif classifier == 'LG':
-                clf = LogisticRegression(random_state=0, solver='lbfgs',multi_class='multinomial')
-            elif classifier == 'maha':
-                clf = KNeighborsClassifier(n_neighbors=15,metric='mahalanobis', metric_params={'V': np.cov(X_train[:,:].T)})
-            else:
-                raise ValueError('Classifier not correctly defined.')
-	
+
+            clf = get_classifier(classifier)
+
             # train
             clf.fit(X_train ,y_train)
             

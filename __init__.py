@@ -1,2 +1,2 @@
 #!/usr/bin/python
- from . import decoding_functions
+ from temp_dec import decoding_functions
