@@ -23,6 +23,7 @@ This function takes in the data X (ndarray; trials by channels by time), labels 
 
 ```Python
 from temp_dec import decoding_functions
+decoding_functions.temporal_decoding()
 ```
 
 
