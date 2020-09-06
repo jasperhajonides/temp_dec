@@ -36,7 +36,7 @@ def matrix_vector_shift(matrix,vector,n_bins):
 	r,c = matrix.shape
 	matrix_shift = np.zeros((r,c))
 	for row in range(0,r):
-		matrix_shift[row,:] = np.roll(matrix[row,:],round(n_bins/2)-vector[row])
+        matrix_shift[row,:] = np.roll(matrix[row,:],int(np.floor(n_bins/2)-vector[row]))
 	return matrix_shift
 
 def convolve_matrix_with_cosine(distances):
