@@ -53,7 +53,7 @@ def convolve_matrix_with_cosine(distances):
         output[tp] = t.mean(0)            
     return output
     
-def get_classifier(classifier):
+def get_classifier(classifier,X_train):
     #define classifier #get classifier function 
     if classifier=='LDA':
         clf = LinearDiscriminantAnalysis()
@@ -192,7 +192,7 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
             X_test = scaler.transform(X_test)
 
             #initiate classifier
-            clf = get_classifier(classifier)
+            clf = get_classifier(classifier,X_train)
 
             # train
             clf.fit(X_train ,y_train)
