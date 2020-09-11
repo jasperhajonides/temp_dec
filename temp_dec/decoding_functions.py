@@ -32,10 +32,9 @@ def matrix_vector_shift(matrix,vector,n_bins):
 	e.g. M =0  1  0     V = 0 0 1 2     M_final =   0 1 0
 			0  1  0									0 1 0
 			1  0  0									0 1 0
-			0  0  1									0 1 0 """
-
-            
-	r,c = matrix.shape
+			0  0  1									0 1 0
+            """
+    r,c = matrix.shape
     matrix_shift = np.zeros((r,c))
     for row in range(0,r):
         matrix_shift[row,:] = np.roll(matrix[row,:],int(np.floor(n_bins/2)-vector[row]))
