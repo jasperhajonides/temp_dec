@@ -26,21 +26,22 @@ def check_input_dim(X_all,y,time):
 
 def matrix_vector_shift(matrix,vector,n_bins):
 
-	""" Shift rows of a matrix by the amount of columns specified 
+	""" Shift rows of a matrix by the amount of columns specified
 		in the corresponding cell of the vector.
-	
-	e.g. M =0  1  0     V = 0 0 1 2     M_final =   0 1 0 
+
+	e.g. M =0  1  0     V = 0 0 1 2     M_final =   0 1 0
 			0  1  0									0 1 0
 			1  0  0									0 1 0
 			0  0  1									0 1 0 """
+            
 	r,c = matrix.shape
-	matrix_shift = np.zeros((r,c))
-	for row in range(0,r):
+    matrix_shift = np.zeros((r,c))
+    for row in range(0,r):
         matrix_shift[row,:] = np.roll(matrix[row,:],int(np.floor(n_bins/2)-vector[row]))
-	return matrix_shift
+    return matrix_shift
 
 def convolve_matrix_with_cosine(distances):
-    """Fits a cosine to the class predictions. This assumes 
+    """Fits a cosine to the class predictions. This assumes
    neighbouring classes are more similar than distant classes """
     #read in data
     [nbins,ntimepts] = distances.shape
@@ -50,11 +51,11 @@ def convolve_matrix_with_cosine(distances):
     theta = theta[1:(nbins+1)]
     for tp in range(0,ntimepts):
         t = np.cos(theta)*distances[:,tp]
-        output[tp] = t.mean(0)            
+        output[tp] = t.mean(0)
     return output
-    
+
 def get_classifier(classifier,X_train):
-    #define classifier #get classifier function 
+    #define classifier #get classifier function
     if classifier=='LDA':
         clf = LinearDiscriminantAnalysis()
     elif classifier=='GNB':
@@ -69,20 +70,20 @@ def get_classifier(classifier,X_train):
         raise ValueError('Classifier not correctly defined.')
     return clf
 
-    
+
 def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier='LDA',use_pca=False,pca_components=.95,temporal_dynamics=True):
     """
     Apply a multi-class classifier (amount of class is equal to n_bins) to each time point.
-    
-    The temporal_dynamics decoding takes a time course and uses a sliding window approach to 
-    decode the feature of interest. We reshape the window from trials x channels x 
-    time to trials x channels*time and demean every channel 
-    
-    
+
+    The temporal_dynamics decoding takes a time course and uses a sliding window approach to
+    decode the feature of interest. We reshape the window from trials x channels x
+    time to trials x channels*time and demean every channel
+
+
     Temporal_dynamics:
     (rows=features; columns=time)
     (n = window_size)
-    
+
     	t  t+1  t+2     t+n		combined t until t+n
         1 	 1 	 1 ..	 1        1
         2 	 2 	 2 ..	 2        2
@@ -105,7 +106,7 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
     Parameters
     ----------
     X_all : ndarray
-            trials by channels by time 
+            trials by channels by time
     y     : ndarray
             vector of labels of each trial
     time  : ndarray
@@ -122,9 +123,9 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
             - LDA: LinearDiscriminantAnalysis
             - LG: LogisticRegression
             - maha: nearest neighbours mahalanobis distance
-            - GNB: Gaussian Naive Bayes 
+            - GNB: Gaussian Naive Bayes
     use_pca     : bool
-    		Apply PCA or not     
+    		Apply PCA or not
     pca_components   : integer
             reduce features to N principal components, if N < 1 it indicates the % of explained variance
     temporal_dynamics : bool
@@ -135,10 +136,10 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
     dictionary:
         accuracy : ndarray
                 dimensions: time
-                matrix containing class predictions for each time point. 
+                matrix containing class predictions for each time point.
         centered_prediction: ndarray
                 dimensions: classes, time
-                matrix containing evidence for each class for each time point. 
+                matrix containing evidence for each class for each time point.
         single_trial_evidence: ndarray
                 dimensions: trials, classes, time
                 evidence for each class, for each timepoint, for each trial
@@ -146,40 +147,40 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
                 dimensions: time
                 cosine convolved evidence for each timepoint.
     """
-    
+
     #### do dimensions of the input data match?
     check_input_dim(X_all,y,time)
 
-    # Get shape 
+    # Get shape
     [n_trials,n_features,n_time] = X_all[:,:,:].shape
 
-	#initialise variables 
-    # np.nan to avoid zeroes in resulting variable 
+	#initialise variables
+    # np.nan to avoid zeroes in resulting variable
     single_trial_evidence = np.zeros(([n_trials,n_bins,n_time])) * np.nan
     label_pred = np.zeros(([n_trials,n_time])) * np.nan
     accuracy   = np.zeros(n_time) * np.nan
     centered_prediction = np.zeros(([n_bins,n_time])) * np.nan
     X_demeaned = np.zeros((n_trials,n_features,size_window)) * np.nan
 
-	
+
     for tp in range((size_window-1),n_time):
 
         if temporal_dynamics:
             #demean features within the sliding window.
             cc=0
-            for s in range((1-size_window),1): 
+            for s in range((1-size_window),1):
                 X_demeaned[:,:,cc] = X_all[:,:,tp+s] - X_all[:,:,(tp-(size_window-1)):(tp+1)].mean(2)
                 cc=cc+1
-            # reshape into trials by features*time     
+            # reshape into trials by features*time
             X = X_demeaned.reshape(X_demeaned.shape[0],X_demeaned.shape[1]*X_demeaned.shape[2])
         else:
         	X = X_all[:,:,tp]
-        
+
         # reduce dimensionality
         if use_pca:
             pca = PCA(n_components=pca_components)
             X = pca.fit(X).transform(X)
-            
+
         #train test set
         rskf = RepeatedStratifiedKFold(n_splits=n_folds, n_repeats=1, random_state=42)
         for train_index, test_index in rskf.split(X, y):
@@ -196,7 +197,7 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
 
             # train
             clf.fit(X_train ,y_train)
-            
+
             # test either binary or class probabilities
             single_trial_evidence[test_index,:,tp] = clf.predict_proba(X_test)
             label_pred[test_index,tp] = clf.predict(X_test)
@@ -215,5 +216,3 @@ def temporal_decoding(X_all,y,time,n_bins=12,size_window=5,n_folds=5,classifier=
     }
 
     return output
-    
-    
