@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # author: JE Hajonides Jul 2020
+# email: jasperhajonides@gmail.com
 
 import numpy as np
 import math
