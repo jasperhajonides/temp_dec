@@ -33,7 +33,6 @@ def matrix_vector_shift(matrix,vector,n_bins):
 			0  1  0									0 1 0
 			1  0  0									0 1 0
 			0  0  1									0 1 0 """
-            
 	r,c = matrix.shape
     matrix_shift = np.zeros((r,c))
     for row in range(0,r):
