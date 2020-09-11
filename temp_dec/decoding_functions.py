@@ -26,13 +26,15 @@ def check_input_dim(X_all,y,time):
 
 def matrix_vector_shift(matrix,vector,n_bins):
 
-	""" Shift rows of a matrix by the amount of columns specified
+    """ Shift rows of a matrix by the amount of columns specified
 		in the corresponding cell of the vector.
 
 	e.g. M =0  1  0     V = 0 0 1 2     M_final =   0 1 0
 			0  1  0									0 1 0
 			1  0  0									0 1 0
 			0  0  1									0 1 0 """
+
+            
 	r,c = matrix.shape
     matrix_shift = np.zeros((r,c))
     for row in range(0,r):
