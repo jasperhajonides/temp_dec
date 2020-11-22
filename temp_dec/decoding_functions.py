@@ -41,6 +41,8 @@ def matrix_vector_shift(matrix, vector, n_bins):
         matrix_shift[row_id, :] = np.roll(matrix[row_id, :], int(np.floor(n_bins/2)-vector[row_id]))
     return matrix_shift
 
+
+
 def convolve_matrix_with_cosine(distances):
     """Fits a cosine to the class predictions. This assumes
    neighbouring classes are more similar than distant classes """

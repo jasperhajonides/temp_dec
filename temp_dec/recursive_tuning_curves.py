@@ -1,5 +1,6 @@
-import convolve_matrix_with_cosine
 import numpy as np
+import math
+import pandas as pd
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
@@ -10,6 +11,13 @@ from sklearn.svm import LinearSVC
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
+from scipy.optimize import leastsq
+
+
+import sys
+sys.path.append('/Users/jasperhvdm/Documents/Scripts/temp_dec/temp_dec/')
+from decoding_functions import *
+
 
 def check_bin_shift(n_bins, theta, shifts):
     """ if we shift the label assignment by a fraction of a bin,
@@ -71,6 +79,7 @@ window_size = 1, n_folds = 10, classifier = 'LDA'):
     return config
 
 
+
 def recursive_tuning_curves(X,y_in,config):
     """This function runs decoding as normal but runs it multiple times, every time it offsets the labels slightly
 
@@ -99,7 +108,6 @@ def recursive_tuning_curves(X,y_in,config):
     bins = np.arange(math.pi/config['n_bins'],math.pi, math.pi/config['n_bins'])
     all_evidence_combined = np.zeros((X.shape[0], config['n_bins'],config['shifts']))
     for q in range(0, config['shifts']):
-        print(q)
 
         # we bin y differently by shifting the binning boundries by a fraction of a binsize
         offset = q/config['n_bins']/config['shifts']*np.pi
@@ -162,3 +170,144 @@ def recursive_tuning_curves(X,y_in,config):
                                                              y, config['n_bins'])
 
     return all_evidence_combined
+
+
+
+def cosine_least_squares_fit(tuning):
+    """Fit a cosine to tuning curve data to obtain model fit Parameters
+
+    Parameters
+    ----------
+    tuning : ndarray
+            1d values of tuning curve sampled from [-pi-x to pi]
+            or
+            2d array of tuning curve bins by repeats
+    t     : ndarray
+            vector of tuning curve phase ranging from [-pi-x to pi]
+            where x is the the stepsize
+    Returns
+    --------
+    dictionary:
+        data_fit : ndarray
+                estimated cosine fit to data
+        amplitude: ndarray
+                highest value - mean of the cosine
+        phase: ndarray
+                phase of cosine. negative value means peak is shifted left,
+                postitive value means peak is shifted right
+        mean: ndarray
+                mean value of cosine
+    """
+    n_steps = tuning.shape[0]
+    t = np.linspace(-np.pi+(0.5*2*np.pi/n_steps),np.pi-(0.5*2*np.pi/n_steps),n_steps)
+    guess_mean = 1/9
+    guess_std = np.std(tuning)#3*np.std(0.0033)/(2**0.5)/(2**0.5)
+    guess_phase = 0
+    guess_amp = 1
+
+    # we'll use this to plot our first estimate. This might already be good enough for you
+    data_first_guess = guess_std*np.cos(t+guess_phase) + guess_mean
+
+    # if input is 2d array we loop over the second dimension
+    if len(tuning.shape) > 1:
+        repeats = tuning.shape[1]
+        #initialise parameter estimates
+        est_amp = np.zeros(repeats)
+        est_phase = np.zeros(repeats)
+        est_mean = np.zeros(repeats)
+        data_fit = np.zeros((n_steps,repeats))
+
+        for rep in range(0,tuning.shape[1]):
+            optimize_func = lambda x: x[0]*np.cos(t+x[1]) + x[2] - tuning[:,rep]
+            ea, ep, em = leastsq(optimize_func, [guess_amp, guess_phase, guess_mean])[0]
+            # if max amplitude is negative we also multiply phase shift by -1
+            est_amp[rep] = ea * np.sign(ea)
+            est_phase[rep] = ep * np.sign(ea)
+            est_mean[rep] = em
+
+            # recreate the fitted curve using the optimized parameters
+            data_fit[:,rep] = ea*np.cos(t+ep) + em
+    else:
+        optimize_func = lambda x: x[0]*np.cos(t+x[1]) + x[2] - tuning
+        est_amp, est_phase, est_mean = leastsq(optimize_func, [guess_amp,
+                                               guess_phase, guess_mean])[0]
+
+        # if max amplitude should not be negative, otherwise we'll shift phase accordingly
+        if (est_amp < 0) & (est_phase<0):
+            est_amp = est_amp * np.sign(est_amp)
+            est_phase = np.pi + est_phase
+        elif (est_amp < 0) & (est_phase>0):
+            est_amp = est_amp * np.sign(est_amp)
+            est_phase = np.mod(est_phase + 2*np.pi,2*np.pi)-np.pi
+
+
+        # recreate the fitted curve using the optimized parameters
+        data_fit = est_amp * np.cos(est_freq*t+est_phase) + est_mean
+
+
+    output = {
+    "data_fit": data_fit,
+    "amplitude": est_amp,
+    "phase": -est_phase,
+    "mean" : est_mean
+    }
+
+    return output
+
+def bias_fitting_single_timepoint(tuning,distractor,split,nr_bins=64):
+    """Fit a cosine tuning curve and determine the phase shift of the present information
+    towards or away a second orientation
+
+    Parameters
+    ----------
+    tuning     : ndarray
+            2d array of tuning curve bins by repeats
+    distractor : ndarray
+            vector of tuning curve phase ranging from [-pi-x to pi]
+            where x is the the stepsize
+    splits     : ndarray
+            vector of the same length as the 'distractor' variable. 
+            where integers indicate different conditions that are averaged separately.
+            zeros will not be included in these conditions 
+    options    : dict
+        bins        : resolution of the circular distractor 
+
+    Returns
+    --------
+    dictionary:
+        xxxx : ndarray
+        xxxx : ndarray"""
+
+    pe = np.zeros((tuning.shape[0],tuning.shape[2]))
+    phase_conditions = np.zeros((int(split.max()),tuning.shape[2]))*np.nan
+
+    # define bins
+    distr_digi_bins = np.arange(math.pi/nr_bins,math.pi, math.pi/nr_bins) #define x bins
+    distr_digitize =  np.digitize((distractor[~np.isnan(distractor)])/2,distr_digi_bins) #digitise into these defined bins
+
+    # if splitting classifier output for different conditions
+    if len(split) == tuning.shape[1]:
+        for con in range(1,int(split.max()+1)): 
+            print('%s. '%con + '%s' %len(np.unique(distr_digitize[split==con])) + '/%s' %nr_bins +  ' unique target-distractor bins')
+        
+    for tp in range (tuning.shape[2]):
+
+        output_fit = cosine_least_squares_fit(tuning[:,~np.isnan(distractor) ,tp])
+        phase_est = output_fit['phase']
+
+        #get the mean for all previous orientations
+        df = pd.DataFrame({'inx': distr_digitize,
+                            'distractor': distr_digitize,
+                            'phase_est': phase_est})
+
+        if len(split) == tuning.shape[1]:
+            for con in range(1,int(split.max()+1)):
+                phase_conditions[con-1,tp] = output_fit['phase'][split==con].mean()
+                
+            df_avg = df.groupby('inx').mean()
+            pe[df_avg['distractor'],tp] = df_avg['phase_est']
+
+    output_fit['phase_estimate_bins'] = pe
+    output_fit['phase_conditions'] = phase_conditions
+
+    return output_fit
