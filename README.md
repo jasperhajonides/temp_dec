@@ -3,7 +3,7 @@
 This toolbox facilitates neural decoding of time series. Under the hood it uses scikit-learn functions.
 
 ## Set-up
-Install using pip
+Install using pip (https://pypi.org/project/temp-dec/)
 
 ```unix
 pip install temp_dec
