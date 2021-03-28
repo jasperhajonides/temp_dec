@@ -4,6 +4,7 @@
 # author: JE Hajonides Jul 2020
 # email: jasperhajonides@gmail.com
 import math
+import sys
 import numpy as np
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.decomposition import PCA
@@ -16,6 +17,8 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 
+sys.path.append('/Users/jasperhajonides/Documents/scripts/temp_dec/temp_dec')
+from least_squares_fit_cos import *
 
 def check_input_dim(x_all, y, time):
     """Check if the labels match first dimension
@@ -67,7 +70,8 @@ def get_classifier(classifier, x_train):
     elif classifier == 'svm':
         clf = CalibratedClassifierCV(LinearSVC())
     elif classifier == 'LG':
-        clf = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial')
+        clf = LogisticRegression(random_state=0, solver='lbfgs', 
+                                 multi_class='multinomial')
     elif classifier == 'maha':
         clf = KNeighborsClassifier(n_neighbors=15, metric='mahalanobis',
                                    metric_params={'V': np.cov(x_train[:, :].T)})
@@ -78,13 +82,17 @@ def get_classifier(classifier, x_train):
 
 def temporal_decoding(x_all, y, time, n_bins=12, size_window=5,
                       n_folds=5, classifier='LDA', use_pca=False,
-                      pca_components=.95, temporal_dynamics=True):
-    """
-    Apply a multi-class classifier (amount of class is equal to n_bins) to each time point.
+                      pca_components=.95, temporal_dynamics=True, 
+                      demean='window'):
 
-    The temporal_dynamics decoding takes a time course and uses a sliding window approach to
-    decode the feature of interest. We reshape the window from trials x channels x
-    time to trials x channels*time and demean every channel
+    """
+    Apply a multi-class classifier (amount of class is equal to n_bins)
+    to each time point.
+
+    The temporal_dynamics decoding takes a time course and uses a 
+    sliding window approach to decode the feature of interest. We reshape 
+    the window from trials x channels x time to trials x channels*time and 
+    demean every channel
 
 
     Temporal_dynamics:
@@ -157,7 +165,7 @@ def temporal_decoding(x_all, y, time, n_bins=12, size_window=5,
                 cosine convolved evidence for each timepoint.
     """
 
-    #### do dimensions of the input data match?
+    #### do dimensions of the input data match?
     check_input_dim(x_all, y, time)
 
     # Get shape
@@ -175,10 +183,11 @@ def temporal_decoding(x_all, y, time, n_bins=12, size_window=5,
     for tp in range((size_window-1), n_time):
 
         if temporal_dynamics:
-            #demean features within the sliding window.
+            #demean features within the sliding window if demean=='window'
             for count, s in enumerate(np.arange(size_window)-(size_window-1)):
                 x_demeaned[:, :, count] = (x_all[:, :, tp+s] -
-                                           x_all[:, :, (tp-(size_window-1)):(tp+1)].mean(2))
+                                           x_all[:, :, (tp-(size_window-1)):(tp+1)].mean(2)*
+                                           ('window' in demean))
             # reshape into trials by features*time
             X = x_demeaned.reshape(x_demeaned.shape[0],
                                    x_demeaned.shape[1]*x_demeaned.shape[2])
@@ -189,6 +198,12 @@ def temporal_decoding(x_all, y, time, n_bins=12, size_window=5,
         if use_pca:
             pca = PCA(n_components=pca_components)
             X = pca.fit(X).transform(X)
+        
+        # demean
+        if 'trial' in demean:
+            X_mean = X.mean(0)
+            for trl in range(X.shape[0]):
+                X[trl,:] = X[trl,:] - X_mean 
 
         #train test set
         rskf = RepeatedStratifiedKFold(n_splits=n_folds,
@@ -212,17 +227,76 @@ def temporal_decoding(x_all, y, time, n_bins=12, size_window=5,
             single_trial_evidence[test_index, :, tp] = clf.predict_proba(x_test)
             label_pred[test_index, tp] = clf.predict(x_test)
 
-        #we want the predicted class to always be in the centre.
-        out = matrix_vector_shift(single_trial_evidence[:, :, tp], y, n_bins)
-        centered_prediction[:, tp] = out.mean(0) # avg across trials
+        #compute accuracy score 
         accuracy[tp] = accuracy_score(y, label_pred[:, tp])
-    cos_convolved = convolve_matrix_with_cosine(centered_prediction)
-
-    output = {
-        "centered_prediction": centered_prediction,
-        "accuracy": accuracy,
+    
+    output = {"accuracy": accuracy,
         "single_trial_evidence": single_trial_evidence,
-        "cos_convolved" : cos_convolved,
-        "time": time}
+        "time": time,
+        "y": y}
 
     return output
+
+
+def cos_convolve(evidence):
+    """Take as input the classifier evidence for single trials in dictionary format
+    and return alligned evidence and evidence convolved with a cosine.
+    
+    Input:
+    dictionary:
+        accuracy : ndarray
+                dimensions: time
+                matrix containing class predictions for each time point.
+        single_trial_evidence: ndarray
+                dimensions: trials, classes, time
+                evidence for each class, for each timepoint, for each trial
+        y: ndarray
+                dimensions: ndarray
+                vector of integers indicating the class on each trial.
+    returns:
+    dictionary, same as input with added:
+
+        centered_prediction: ndarray
+                dimensions: classes, time
+                matrix containing evidence for each class for each time point.
+        cos_convolved: ndarray
+                dimensions: time
+                cosine convolved evidence for each timepoint.
+        single_trial_cosine_fit: ndarray
+                dimensions: trial by time
+                cosine convolved evidence for each timepoint and each trial.
+        single_trial_ev_centered: ndarray    
+                dimensions: trials, classes, time
+                evidence for each class, for each timepoint, for each trial
+                centered around the class of interest.
+                """
+                
+    n_trials, n_bins, n_time = evidence["single_trial_evidence"].shape
+
+    evidence_shifted = np.zeros((n_trials, n_bins, n_time))
+    cos_ev_single_trial = np.zeros((n_trials, n_time))
+    centered_prediction = np.zeros((n_bins, n_time))
+    for tp in range(n_time):
+        #we want the predicted class to always be in the centre.
+        evidence_shifted[:,:,tp] = matrix_vector_shift(evidence["single_trial_evidence"][:, :, tp], evidence["y"], n_bins)
+        centered_prediction[:, tp] = evidence_shifted[:, :, tp].mean(0) # avg across trials
+
+
+    for trl in range(n_trials):
+        cos_ev_single_trial[trl, :] = convolve_matrix_with_cosine(evidence_shifted[trl, :, :])
+
+    # convolve trial average tuning curves with cosine    
+    cos_convolved = convolve_matrix_with_cosine(centered_prediction)
+    #fit tuning curve
+    out_tc = least_squares_fit_cos(centered_prediction)
+
+    evidence["centered_prediction"] = centered_prediction
+    evidence["cos_convolved"] = cos_convolved
+    evidence["tuning_curve_conv"] = out_tc['amplitude']
+    evidence["single_trial_ev_centered"] = evidence_shifted
+    evidence["single_trial_cosine_fit"] = cos_ev_single_trial
+
+    return evidence
+
+
+
