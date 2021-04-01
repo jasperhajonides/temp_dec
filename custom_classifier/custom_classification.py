@@ -7,13 +7,14 @@ Created on Sun Mar 28 14:09:49 2021
 """
 
 
-
+import numpy as np
 import math
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.extmath import softmax
-
+from temp_dec import decoding_functions
+from scipy.special import expit
 #%%
 class CustomEstimator(BaseEstimator):
     """
@@ -72,7 +73,6 @@ class CustomEstimator(BaseEstimator):
 
         # we use the fitted model and log if logging is enabled
         y_pred = self.model_.predict(X)
-
         return y_pred
     
     def predict_proba(self, X):
@@ -83,6 +83,7 @@ class CustomEstimator(BaseEstimator):
             return np.vstack([1-proba, proba]).T
         else:
             return softmax(decision)
+        
     def predict_conv(self, X, y):
         check_is_fitted(self)
         decision = self.decision_function(X)
@@ -95,8 +96,24 @@ class CustomEstimator(BaseEstimator):
             theta = np.arange(-math.pi-0.000001,math.pi - (2*math.pi/nbins),(2*math.pi/nbins))
             matrix_shift = np.zeros((len(matrix),nbins))
             for val in range(0,matrix.shape[0]):
-                matrix_shift[val,:] = np.roll(matrix[val,:],math.floor(nbins/2)-y[val])
+                matrix_shift[val,:] = np.roll(matrix[val,:],math.floor(nbins/2)-int(y[val]))
             return np.sum(np.cos(theta)*matrix_shift,axis=1)
+        
+    def predict_conv_proba(self, X, y):
+        check_is_fitted(self)
+        decision = self.decision_function(X)
+        if self.classes_.size == 2:
+            proba = expit(decision)
+            return np.vstack([1-proba, proba]).T
+        else:
+            matrix = softmax(decision)
+            nbins = len(set(y))
+            theta = np.arange(-math.pi-0.000001,math.pi - (2*math.pi/nbins),(2*math.pi/nbins))
+            matrix_shift = np.zeros((len(matrix),nbins))
+            for val in range(0,matrix.shape[0]):
+                matrix_shift[val,:] = np.roll(matrix[val,:],math.floor(nbins/2)-int(y[val]))
+            return np.cos(theta)*matrix_shift
+        
         
 
     # requiring a score method is not documented but throws an
@@ -126,95 +143,43 @@ class CustomEstimator(BaseEstimator):
         else:
             raise AttributeError(
                 "'{}' object has no attribute 'model_'".format(type(self).__name__))
-
+    
+        
 # https://ploomber.io/posts/sklearn-custom/
  
  #%%
  
- X,y=datasets.load_wine(return_X_y=True)
  
- X_train, X_test, y_train, y_test = train_test_split(
-  	      X, y, test_size=0.2, random_state=42) #X[:,:,110:180].mean(2)
+ 
+ 
+#  X,y=datasets.load_wine(return_X_y=True)
+ 
+#  X_train, X_test, y_train, y_test = train_test_split(
+#   	      X, y, test_size=0.2, random_state=42) #X[:,:,110:180].mean(2)
   
   
-#%%
+# #%%
 
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.linear_model import LinearRegression
+# from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+# from sklearn.linear_model import LinearRegression
 
-pipe = Pipeline([('pca',PCA()),
-                 ('scaler', StandardScaler()),
-                 ('reg', CustomEstimator(est_class=LinearDiscriminantAnalysis))])
+# pipe = Pipeline([('pca',PCA()),
+#                  ('scaler', StandardScaler()),
+#                  ('reg', CustomEstimator(est_class=LinearDiscriminantAnalysis))])
 
-# perform hyperparameter tuning
-grid = GridSearchCV(pipe, param_grid={'pca__n_components': [10,8,5]}, 
-                    n_jobs=-1,scoring='accuracy') #'reg__n_clusters': [10],
+# # perform hyperparameter tuning
+# grid = GridSearchCV(pipe, param_grid={'pca__n_components': [10,8,5]}, 
+#                     n_jobs=-1,scoring='accuracy') #'reg__n_clusters': [10],
 
-best_pipe = grid.fit(X_train, y_train).best_estimator_
+# best_pipe = grid.fit(X_train, y_train).best_estimator_
 
-# make predictions using the best model
-#y_predp = best_pipe.predict_proba(X_test)
-y_pred = best_pipe.predict(X_test)
+# # make predictions using the best model
+# #y_predp = best_pipe.predict_proba(X_test)
+# y_pred = best_pipe.predict(X_test)
 
-print(grid.best_params_)
-print(f'MAE: {np.abs(y_test - y_pred).mean():.2f}')
-print('accuracy score: ' + str(accuracy_score(y_test,y_pred)))
-#%%
-
-
-
-
-from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
-
-#%%
-from sklearn.utils.validation import check_is_fitted
-
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis,QuadraticDiscriminantAnalysis
-from sklearn.linear_model import LinearRegression
-size_window=20
-
-
-acc = np.zeros(128)
-cos_acc = np.zeros(128)
-pca_comp = np.zeros((128,5))
-
-
-[n_trials,n_features,n_time] = X_all[:,:,:].shape
-
-y=thetas[:,0]
-
-for tp in range(30,35):
-    y_class_pred = np.zeros((n_trials,12))
-    X_demeaned = np.zeros((n_trials,n_features,size_window)) * np.nan
-
-    cc=0
-    for s in range((1-size_window),1):
-        X_demeaned[:,:,cc] = X_all[:,:,tp+s] - X_all[:,:,(tp-(size_window-1)):(tp+1)].mean(2)
-        cc=cc+1
-    # reshape into trials by features*time
-    X = X_demeaned.reshape(X_demeaned.shape[0],X_demeaned.shape[1]*X_demeaned.shape[2])
-
-    ccc=0
-    rskf = RepeatedStratifiedKFold(n_splits=5, n_repeats=1, random_state=42)
-    for train_index, test_index in rskf.split(X, y):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-    
-        pipe = Pipeline([('pca',PCA()),
-                         ('scaler', StandardScaler()),
-                         ('reg', CustomEstimator(est_class=LinearDiscriminantAnalysis))])
-
-        # perform hyperparameter tuning
-        grid = GridSearchCV(pipe, param_grid={'pca__n_components': [.999,.95,.9]}, 
-                            n_jobs=-1,scoring='accuracy',cv=10) #'reg__n_clusters': [10],
-
-        best_pipe = grid.fit(X_train, y_train).best_estimator_
-
-        y_class_pred[test_index,:] = best_pipe.predict_conv(X_test,y_test)
-        pca_comp[tp,ccc] = grid.best_params_['pca__n_components']
-        ccc += 1
-    cos_acc[tp] = y_class_pred.mean(0)
-    
-    print('cos accuracy score: ' + str(cos_acc[tp]*1000) + '  pca:' +  str(pca_comp[tp,:].mean(0)))
+# print(grid.best_params_)
+# print(f'MAE: {np.abs(y_test - y_pred).mean():.2f}')
+# print('accuracy score: ' + str(accuracy_score(y_test,y_pred)))
+# #%%
 
 

@@ -7,8 +7,7 @@ import math
 import sys
 import numpy as np
 from sklearn.model_selection import RepeatedStratifiedKFold
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
+ from sklearn.preprocessing import StandardScaler
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
@@ -17,48 +16,13 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 
-sys.path.append('/Users/jasperhajonides/Documents/scripts/temp_dec/temp_dec')
-from least_squares_fit_cos import *
 
-def check_input_dim(x_all, y, time):
+def check_input_dim(x_all, y):
     """Check if the labels match first dimension
        Check if time vector matches third dimension"""
     if len(y) != x_all.shape[0]:
         raise ValueError('Number of labels (y) does not match the first dimension of the data.')
-    if len(time) != x_all.shape[2]:
-        raise ValueError('Number of timepoints does not match the third input dimension.')
 
-def matrix_vector_shift(matrix, vector, n_bins):
-
-    """ Shift rows of a matrix by the amount of columns specified
-		in the corresponding cell of the vector.
-
-	e.g. M =0  1  0     V = 0 0 1 2     M_final =   0 1 0
-			0  1  0									0 1 0
-			1  0  0									0 1 0
-			0  0  1									0 1 0
-            """
-    row, col = matrix.shape
-    matrix_shift = np.zeros((row, col))
-    for row_id in range(0, row):
-        matrix_shift[row_id, :] = np.roll(matrix[row_id, :], int(np.floor(n_bins/2)-vector[row_id]))
-    return matrix_shift
-
-
-
-def convolve_matrix_with_cosine(distances):
-    """Fits a cosine to the class predictions. This assumes
-   neighbouring classes are more similar than distant classes """
-    #read in data
-    [nbins, ntimepts] = distances.shape
-    output = np.zeros(ntimepts) # define output
-    #theta -pi to pi
-    theta = np.arange((nbins+1))/(nbins)*(2*math.pi)-math.pi
-    theta = theta[1:(nbins+1)]
-    for tp in range(0, ntimepts):
-        t = np.cos(theta)*distances[:, tp]
-        output[tp] = t.mean(0)
-    return output
 
 def get_classifier(classifier, x_train):
     """This function is used to initialise the classifier """
@@ -80,10 +44,9 @@ def get_classifier(classifier, x_train):
     return clf
 
 
-def temporal_decoding(x_all, y, time, n_bins=12, size_window=5,
-                      n_folds=5, classifier='LDA', use_pca=False,
-                      pca_components=.95, temporal_dynamics=True, 
-                      demean='window'):
+def temporal_decoding(x_all, y, n_bins=12, size_window=5,
+                      n_folds=5, classifier='LDA',
+                      pca_components=.95, demean='window'):
 
     """
     Apply a multi-class classifier (amount of class is equal to n_bins)
@@ -129,7 +92,8 @@ def temporal_decoding(x_all, y, time, n_bins=12, size_window=5,
     bins  : integer
             how many stimulus classes are present
     size_window :  integer
-            size of the sliding window
+            size of the sliding window.
+            if 1, just single time-point by time-point decoding
     n_folds :  integer
             folds of cross validation
     classifier : string
@@ -139,37 +103,32 @@ def temporal_decoding(x_all, y, time, n_bins=12, size_window=5,
             - LG: LogisticRegression
             - maha: nearest neighbours mahalanobis distance
             - GNB: Gaussian Naive Bayes
-    use_pca     : bool
-    		Apply PCA or not
     pca_components   : integer
             reduce features to N principal components,
             if N < 1 it indicates the % of explained variance
-    temporal_dynamics : bool
-            use sliding window (default is True),
-            if false its just single time-point decoding
-
+    demean : string
+            'window' option demeans each feature within each window
+            any other input disables demeaning.
     Returns
     --------
     dictionary:
         accuracy : ndarray
                 dimensions: time
                 matrix containing class predictions for each time point.
-        centered_prediction: ndarray
-                dimensions: classes, time
-                matrix containing evidence for each class for each time point.
+
         single_trial_evidence: ndarray
                 dimensions: trials, classes, time
                 evidence for each class, for each timepoint, for each trial
-        cos_convolved: ndarray
-                dimensions: time
-                cosine convolved evidence for each timepoint.
+        
+
     """
 
     #### do dimensions of the input data match?
-    check_input_dim(x_all, y, time)
+    check_input_dim(x_all, y)
 
     # Get shape
     [n_trials, n_features, n_time] = x_all[:, :, :].shape
+    time = np.arange(n_time)
 
 	#initialise variables
     # np.nan to avoid zeroes in resulting variable
@@ -179,10 +138,10 @@ def temporal_decoding(x_all, y, time, n_bins=12, size_window=5,
     centered_prediction = np.zeros(([n_bins, n_time])) * np.nan
     x_demeaned = np.zeros((n_trials, n_features, size_window)) * np.nan
 
-
+ 
     for tp in range((size_window-1), n_time):
 
-        if temporal_dynamics:
+        if size_window > 1:
             #demean features within the sliding window if demean=='window'
             for count, s in enumerate(np.arange(size_window)-(size_window-1)):
                 x_demeaned[:, :, count] = (x_all[:, :, tp+s] -
@@ -195,15 +154,9 @@ def temporal_decoding(x_all, y, time, n_bins=12, size_window=5,
             X = x_all[:, :, tp]
 
         # reduce dimensionality
-        if use_pca:
+        if pca_components != 1:
             pca = PCA(n_components=pca_components)
             X = pca.fit(X).transform(X)
-        
-        # demean
-        if 'trial' in demean:
-            X_mean = X.mean(0)
-            for trl in range(X.shape[0]):
-                X[trl,:] = X[trl,:] - X_mean 
 
         #train test set
         rskf = RepeatedStratifiedKFold(n_splits=n_folds,
@@ -230,12 +183,12 @@ def temporal_decoding(x_all, y, time, n_bins=12, size_window=5,
         #compute accuracy score 
         accuracy[tp] = accuracy_score(y, label_pred[:, tp])
     
-    output = {"accuracy": accuracy,
+    evidence = {"accuracy": accuracy,
         "single_trial_evidence": single_trial_evidence,
         "time": time,
         "y": y}
 
-    return output
+    return evidence
 
 
 def cos_convolve(evidence):
