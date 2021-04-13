@@ -20,11 +20,11 @@ pycircstat== 0.0.2
 ```
 
 ## Python implementation
-This function takes in the data X (ndarray; trials by channels by time), labels y (ndarray; vector), and a time (ndarray, vector).
+This function takes in the data X (ndarray; trials by channels by time), labels y (ndarray; vector).
 
 ```Python
 from temp_dec import decoding_functions
-decoding_functions.temporal_decoding(X,y,time)
+decoding_functions.temporal_decoding(X, y)
 ```
 
 
@@ -40,10 +40,7 @@ size_window=5
 #### Applying PCA
 If you use a large amount of features, you might want to consider applying PCA to your features before applying your classifier. In addition, classifiers are sensitive to noise rejecting noise components from the data can be beneficial. 
 
-```Python
-use_pca = True
-```
-You can also regulate how many components you would like to keep (setting the pca_components variant to > 1) or how much variance you would like to explain (setting the pca_components variant to < 1). As a general rule of thumb maintaining 95% of variance will maintain enough signal and reduces feature space. 
+You can regulate how many components you would like to keep (setting the pca_components variant to > 1) or how much variance you would like to explain (setting the pca_components variant to < 1). As a general rule of thumb maintaining 95% of variance will maintain enough signal and reduces feature space. 
 
 ```Python
 pca_components = .95
@@ -67,11 +64,9 @@ classifier = 'LDA'
 
 
 ``` Python
-output = decoding_functions.temporal_decoding(data,labels,time,
-                                                n_bins=number_of_categories,
+output = decoding_functions.temporal_decoding(data, labels,
                                                 n_folds=10,
                                                 classifier='LDA',
-                                                use_pca=True,pca_components=.95,
-                                                temporal_dynamics=True,
+                                                pca_components=.95,
                                                 size_window=20)
 ```
