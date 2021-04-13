@@ -19,7 +19,8 @@ scipy==1.5.0
 pycircstat== 0.0.2
 ```
 
-## Python implementation
+
+## Using temporal_decoding function 
 This function takes in the data X (ndarray; trials by channels by time), labels y (ndarray; vector).
 
 ```Python
@@ -70,3 +71,20 @@ output = decoding_functions.temporal_decoding(data, labels,
                                                 pca_components=.95,
                                                 size_window=20)
 ```
+#### Convolve with cosine
+
+This will output the accuracy (correct/n_bins) and probabilities of each class for each trial and time point. 
+Now you can run ```decoding_functions.cos_convolve``` to convolve the probabilities of each trial with a cosine.
+
+``` Python
+output = decoding_functions.cos_convolve(output)
+```
+
+Among others options, you can now access output['cos_convolved'], containing a single vector with average cosine-convolved probabilities for each time point.
+
+
+
+## Using Classifier with cosine convolution
+
+Alternatively, you can load the custom classifier 
+
