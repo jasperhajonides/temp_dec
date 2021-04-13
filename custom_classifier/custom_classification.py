@@ -28,9 +28,10 @@ class CustomEstimator(BaseEstimator):
         Keyword arguments to initialize the estimator
     """
 
-    def __init__(self, est_class=LinearDiscriminantAnalysis(), **kwargs):
+    def __init__(self, n_bins = 8, est_class=LinearDiscriminantAnalysis(), **kwargs):
 
         self.est_class = est_class
+        self.n_bins = n_bins
 
         # kwargs depend on the model used, so assign them whatever they are
         for key, value in kwargs.items():
@@ -68,6 +69,7 @@ class CustomEstimator(BaseEstimator):
         # fit must return self
         return self
 
+    
     def predict(self, X):
         check_is_fitted(self)
 
@@ -147,39 +149,4 @@ class CustomEstimator(BaseEstimator):
         
 # https://ploomber.io/posts/sklearn-custom/
  
- #%%
  
- 
- 
- 
-#  X,y=datasets.load_wine(return_X_y=True)
- 
-#  X_train, X_test, y_train, y_test = train_test_split(
-#   	      X, y, test_size=0.2, random_state=42) #X[:,:,110:180].mean(2)
-  
-  
-# #%%
-
-# from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-# from sklearn.linear_model import LinearRegression
-
-# pipe = Pipeline([('pca',PCA()),
-#                  ('scaler', StandardScaler()),
-#                  ('reg', CustomEstimator(est_class=LinearDiscriminantAnalysis))])
-
-# # perform hyperparameter tuning
-# grid = GridSearchCV(pipe, param_grid={'pca__n_components': [10,8,5]}, 
-#                     n_jobs=-1,scoring='accuracy') #'reg__n_clusters': [10],
-
-# best_pipe = grid.fit(X_train, y_train).best_estimator_
-
-# # make predictions using the best model
-# #y_predp = best_pipe.predict_proba(X_test)
-# y_pred = best_pipe.predict(X_test)
-
-# print(grid.best_params_)
-# print(f'MAE: {np.abs(y_test - y_pred).mean():.2f}')
-# print('accuracy score: ' + str(accuracy_score(y_test,y_pred)))
-# #%%
-
-

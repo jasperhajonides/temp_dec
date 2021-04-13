@@ -41,7 +41,7 @@ def sliding_window(data, size_window=20, demean=True):
     except ValueError:
         raise ValueError("Data has the wrong shape")
     
-    if size_window <= 1 or len(data.shape) < 3 or n_time <= size_window:
+    if size_window <= 1 or len(data.shape) < 3 or n_time < size_window:
         print('not suitable')
         return data
 
@@ -61,16 +61,4 @@ def sliding_window(data, size_window=20, demean=True):
     return output
 
     
- #%% test
- 
-a = np.array([np.arange(10), np.arange(10)+10, np.arange(10)+20, 
-              np.arange(10)+30, np.arange(10)+40, np.arange(10)+50])
-a = a[None,:,:] #add observations-dimension to array, here set to 1 just because
-
-
-x_out = sliding_window(a, size_window=8, demean=False)
-
-print(x_out)
-print('initial shape: {}'.format(a.shape))
-print('output shape: {}'.format(x_out.shape) )
  

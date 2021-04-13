@@ -7,7 +7,7 @@ import math
 import sys
 import numpy as np
 from sklearn.model_selection import RepeatedStratifiedKFold
- from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
@@ -15,6 +15,28 @@ from sklearn.svm import LinearSVC
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
+
+from tools.constr import *
+from tools.tuning_curves import *
+
+
+
+def matrix_vector_shift(matrix, vector, n_bins):
+
+    """ Shift rows of a matrix by the amount of columns specified
+		in the corresponding cell of the vector.
+
+	e.g. M =0  1  0     V = 0 0 1 2     M_final =   0 1 0
+			0  1  0									 0 1 0
+			1  0  0									 0 1 0
+			0  0  1								  	 0 1 0
+            """
+    row, col = matrix.shape
+    matrix_shift = np.zeros((row, col))
+    for row_id in range(0, row):
+        matrix_shift[row_id, :] = np.roll(matrix[row_id, :], int(np.floor(n_bins/2)-vector[row_id]))
+    return matrix_shift
+
 
 
 def check_input_dim(x_all, y):
