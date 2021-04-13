@@ -13,9 +13,10 @@ pip install temp_dec
 ## Requirements
 
 ```Python
-sklearn==0.21.3
-numpy==1.13.1
-scipy==0.19.1
+scikit-learn==0.23.2
+numpy==1.19.2
+scipy==1.5.0
+pycircstat== 0.0.2
 ```
 
 ## Python implementation
