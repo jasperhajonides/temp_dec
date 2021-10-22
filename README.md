@@ -13,19 +13,17 @@ pip install temp_dec
 ## Requirements
 
 ```Python
-scikit-learn==0.23.2
-numpy==1.19.2
-scipy==1.5.0
-pycircstat== 0.0.2
+sklearn==0.21.3
+numpy==1.13.1
+scipy==0.19.1
 ```
 
-
-## Using temporal_decoding function 
-This function takes in the data X (ndarray; trials by channels by time), labels y (ndarray; vector).
+## Python implementation
+This function takes in the data X (ndarray; trials by channels by time), labels y (ndarray; vector), and a time (ndarray, vector).
 
 ```Python
 from temp_dec import decoding_functions
-decoding_functions.temporal_decoding(X, y)
+decoding_functions.temporal_decoding(X,y,time)
 ```
 
 
@@ -41,7 +39,10 @@ size_window=5
 #### Applying PCA
 If you use a large amount of features, you might want to consider applying PCA to your features before applying your classifier. In addition, classifiers are sensitive to noise rejecting noise components from the data can be beneficial. 
 
-You can regulate how many components you would like to keep (setting the pca_components variant to > 1) or how much variance you would like to explain (setting the pca_components variant to < 1). As a general rule of thumb maintaining 95% of variance will maintain enough signal and reduces feature space. 
+```Python
+use_pca = True
+```
+You can also regulate how many components you would like to keep (setting the pca_components variant to > 1) or how much variance you would like to explain (setting the pca_components variant to < 1). As a general rule of thumb maintaining 95% of variance will maintain enough signal and reduces feature space. 
 
 ```Python
 pca_components = .95
@@ -65,26 +66,11 @@ classifier = 'LDA'
 
 
 ``` Python
-output = decoding_functions.temporal_decoding(data, labels,
+output = decoding_functions.temporal_decoding(data,labels,time,
+                                                n_bins=number_of_categories,
                                                 n_folds=10,
                                                 classifier='LDA',
-                                                pca_components=.95,
+                                                use_pca=True,pca_components=.95,
+                                                temporal_dynamics=True,
                                                 size_window=20)
 ```
-#### Convolve with cosine
-
-This will output the accuracy (correct/n_bins) and probabilities of each class for each trial and time point. 
-Now you can run ```decoding_functions.cos_convolve``` to convolve the probabilities of each trial with a cosine.
-
-``` Python
-output = decoding_functions.cos_convolve(output)
-```
-
-Among others options, you can now access output['cos_convolved'], containing a single vector with average cosine-convolved probabilities for each time point.
-
-
-
-## Using Classifier with cosine convolution
-
-Alternatively, you can load the custom classifier 
-

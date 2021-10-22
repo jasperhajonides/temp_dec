@@ -49,13 +49,13 @@ def sliding_window(data, size_window=20, demean=True):
     output = np.zeros((n_obs, n_features*size_window, n_time))
     
     # loop over third dimension
-    for time in range(size_window-1,n_time):
+    for time in range(size_window-1, n_time):
         #concatenate features within window 
         # and demean features if selected
         mean_value = data[:, :, (time-size_window+1):(time+1)].mean(2)
         x_window = data[:, :, (time-size_window+1):(time+1)].reshape(
-            n_obs,n_features*size_window) - np.tile(mean_value.T,size_window).reshape(
-            n_obs,n_features*size_window)*demean            
+            n_obs, n_features*size_window) - np.tile(mean_value.T, size_window).reshape(
+            n_obs, n_features*size_window)*float(demean)        
         # add to array
         output[:, :, time] = x_window 
     return output

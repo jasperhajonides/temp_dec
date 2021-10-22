@@ -3,11 +3,15 @@
 
 # author: JE Hajonides Jul 2020
 # email: jasperhajonides@gmail.com
+
 import math
 import sys
 import numpy as np
+
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
@@ -16,8 +20,9 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 
-from tools.constr import *
-from tools.tuning_curves import *
+# from tools.constr import *
+# from tools.sliding_window import sliding_window
+
 
 
 
@@ -36,7 +41,6 @@ def matrix_vector_shift(matrix, vector, n_bins):
     for row_id in range(0, row):
         matrix_shift[row_id, :] = np.roll(matrix[row_id, :], int(np.floor(n_bins/2)-vector[row_id]))
     return matrix_shift
-
 
 
 def check_input_dim(x_all, y):
@@ -66,9 +70,8 @@ def get_classifier(classifier, x_train):
     return clf
 
 
-def temporal_decoding(x_all, y, n_bins=12, size_window=5,
-                      n_folds=5, classifier='LDA',
-                      pca_components=.95, demean='window'):
+def temporal_decoding(x_all, y, size_window=5, n_folds=5,
+                       classifier='LDA', pca_components=.95, n_steps=1, demean=True):
 
     """
     Apply a multi-class classifier (amount of class is equal to n_bins)
@@ -111,8 +114,6 @@ def temporal_decoding(x_all, y, n_bins=12, size_window=5,
             vector of labels of each trial
     time  : ndarray
             vector with time labels locked to the cue
-    bins  : integer
-            how many stimulus classes are present
     size_window :  integer
             size of the sliding window.
             if 1, just single time-point by time-point decoding
@@ -128,9 +129,10 @@ def temporal_decoding(x_all, y, n_bins=12, size_window=5,
     pca_components   : integer
             reduce features to N principal components,
             if N < 1 it indicates the % of explained variance
-    demean : string
-            'window' option demeans each feature within each window
-            any other input disables demeaning.
+    n_steps : integer
+            Skip n time points to get more sparsely sampled output
+    demean : Boolean
+            This option demeans each feature within each window.
     Returns
     --------
     dictionary:
@@ -150,39 +152,42 @@ def temporal_decoding(x_all, y, n_bins=12, size_window=5,
 
     # Get shape
     [n_trials, n_features, n_time] = x_all[:, :, :].shape
-    time = np.arange(n_time)
+    n_bins = len(set(y))
 
 	#initialise variables
     # np.nan to avoid zeroes in resulting variable
     single_trial_evidence = np.zeros(([n_trials, n_bins, n_time])) * np.nan
     label_pred = np.zeros(([n_trials, n_time])) * np.nan
     accuracy = np.zeros(n_time) * np.nan
-    centered_prediction = np.zeros(([n_bins, n_time])) * np.nan
-    x_demeaned = np.zeros((n_trials, n_features, size_window)) * np.nan
+    x_demeaned = np.zeros((n_trials, n_features, size_window)) 
+    nr_comp = np.zeros(n_time) * np.nan
 
- 
-    for tp in range((size_window-1), n_time):
 
+    # compute sliding_window features
+    # x_all = sliding_window(x_all, size_window = size_window, demean=demean)
+
+    count = -1
+    for tp in range((size_window-1), n_time, n_steps):
+        count = count + 1
+        
         if size_window > 1:
             #demean features within the sliding window if demean=='window'
-            for count, s in enumerate(np.arange(size_window)-(size_window-1)):
-                x_demeaned[:, :, count] = (x_all[:, :, tp+s] -
-                                           x_all[:, :, (tp-(size_window-1)):(tp+1)].mean(2)*
-                                           ('window' in demean))
+            for cc, s in enumerate(np.arange(size_window)-(size_window-1)):
+                 x_demeaned[:, :, cc] = (x_all[:, :, tp+s] -
+                                        x_all[:, :, (tp-(size_window-1)):(tp+1)].mean(2))
             # reshape into trials by features*time
-            X = x_demeaned.reshape(x_demeaned.shape[0],
-                                   x_demeaned.shape[1]*x_demeaned.shape[2])
+            X_out = x_demeaned.reshape(x_demeaned.shape[0], x_demeaned.shape[1]*x_demeaned.shape[2])
         else:
-            X = x_all[:, :, tp]
-
-        # reduce dimensionality
+            X_out = x_all[:,:,tp]
+        
+            # reduce dimensionality
         if pca_components != 1:
             pca = PCA(n_components=pca_components)
-            X = pca.fit(X).transform(X)
-
+            X = pca.fit_transform(X_out)
         #train test set
         rskf = RepeatedStratifiedKFold(n_splits=n_folds,
                                        n_repeats=1, random_state=42)
+        
         for train_index, test_index in rskf.split(X, y):
             x_train, x_test = X[train_index], X[test_index]
             y_train = y[train_index]
@@ -199,15 +204,14 @@ def temporal_decoding(x_all, y, n_bins=12, size_window=5,
             clf.fit(x_train, y_train)
 
             # test either binary or class probabilities
-            single_trial_evidence[test_index, :, tp] = clf.predict_proba(x_test)
-            label_pred[test_index, tp] = clf.predict(x_test)
-
+            single_trial_evidence[test_index, :, count] = clf.predict_proba(x_test)
+            label_pred[test_index, count] = clf.predict(x_test)
+        
         #compute accuracy score 
-        accuracy[tp] = accuracy_score(y, label_pred[:, tp])
-    
+        accuracy[count] = accuracy_score(y, label_pred[:, count])
+        
     evidence = {"accuracy": accuracy,
         "single_trial_evidence": single_trial_evidence,
-        "time": time,
         "y": y}
 
     return evidence
@@ -262,12 +266,9 @@ def cos_convolve(evidence):
 
     # convolve trial average tuning curves with cosine    
     cos_convolved = convolve_matrix_with_cosine(centered_prediction)
-    #fit tuning curve
-    out_tc = least_squares_fit_cos(centered_prediction)
 
     evidence["centered_prediction"] = centered_prediction
     evidence["cos_convolved"] = cos_convolved
-    evidence["tuning_curve_conv"] = out_tc['amplitude']
     evidence["single_trial_ev_centered"] = evidence_shifted
     evidence["single_trial_cosine_fit"] = cos_ev_single_trial
 
@@ -275,3 +276,16 @@ def cos_convolve(evidence):
 
 
 
+def convolve_matrix_with_cosine(distances):
+    """Fits a cosine to the class predictions. This assumes
+   neighbouring classes are more similar than distant classes """
+    #read in data
+    [nbins, ntimepts] = distances.shape
+    output = np.zeros(ntimepts) # define output
+    #theta -pi to pi
+    theta = np.arange((nbins+1))/(nbins)*(2*math.pi)-math.pi
+    theta = theta[1:(nbins+1)]
+    for tp in range(0, ntimepts):
+        t = np.cos(theta)*distances[:, tp]
+        output[tp] = t.mean(0)
+    return output
