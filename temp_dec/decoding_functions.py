@@ -69,24 +69,22 @@ def get_classifier(classifier, x_train):
         raise ValueError('Classifier not correctly defined.')
     return clf
 
-
-def temporal_decoding(x_all, y, size_window=5, n_folds=5,
-                       classifier='LDA', pca_components=.95, n_steps=1, demean=True):
+def temporal_decoding(x_all, y, size_window=5,
+                      n_folds=5, classifier='LDA',
+                      pca_components=.95, demean=True):
 
     """
     Apply a multi-class classifier (amount of class is equal to n_bins)
     to each time point.
-
+    
     The temporal_dynamics decoding takes a time course and uses a 
     sliding window approach to decode the feature of interest. We reshape 
     the window from trials x channels x time to trials x channels*time and 
     demean every channel
-
-
+    
     Temporal_dynamics:
     (rows=features; columns=time)
     (n = window_size)
-
     	t  t+1  t+2     t+n		combined t until t+n
         1 	 1 	 1 ..	 1        1
         2 	 2 	 2 ..	 2        2
@@ -105,7 +103,6 @@ def temporal_decoding(x_all, y, size_window=5, n_folds=5,
 								  1
 								  ..
 								  7
-
     Parameters
     ----------
     x_all : ndarray
@@ -129,22 +126,19 @@ def temporal_decoding(x_all, y, size_window=5, n_folds=5,
     pca_components   : integer
             reduce features to N principal components,
             if N < 1 it indicates the % of explained variance
-    n_steps : integer
-            Skip n time points to get more sparsely sampled output
-    demean : Boolean
-            This option demeans each feature within each window.
+    demean : string
+            'window' option demeans each feature within each window
+            any other input disables demeaning.
     Returns
     --------
     dictionary:
         accuracy : ndarray
                 dimensions: time
                 matrix containing class predictions for each time point.
-
         single_trial_evidence: ndarray
                 dimensions: trials, classes, time
                 evidence for each class, for each timepoint, for each trial
         
-
     """
 
     #### do dimensions of the input data match?
@@ -152,6 +146,9 @@ def temporal_decoding(x_all, y, size_window=5, n_folds=5,
 
     # Get shape
     [n_trials, n_features, n_time] = x_all[:, :, :].shape
+    time = np.arange(n_time)
+    
+    #number of unique classes to decode. Assuming equal distance between classes
     n_bins = len(set(y))
 
 	#initialise variables
@@ -159,35 +156,32 @@ def temporal_decoding(x_all, y, size_window=5, n_folds=5,
     single_trial_evidence = np.zeros(([n_trials, n_bins, n_time])) * np.nan
     label_pred = np.zeros(([n_trials, n_time])) * np.nan
     accuracy = np.zeros(n_time) * np.nan
-    x_demeaned = np.zeros((n_trials, n_features, size_window)) 
-    nr_comp = np.zeros(n_time) * np.nan
+    centered_prediction = np.zeros(([n_bins, n_time])) * np.nan
+    x_demeaned = np.zeros((n_trials, n_features, size_window)) * np.nan
 
+ 
+    for tp in range((size_window-1), n_time):
 
-    # compute sliding_window features
-    # x_all = sliding_window(x_all, size_window = size_window, demean=demean)
-
-    count = -1
-    for tp in range((size_window-1), n_time, n_steps):
-        count = count + 1
-        
         if size_window > 1:
             #demean features within the sliding window if demean=='window'
-            for cc, s in enumerate(np.arange(size_window)-(size_window-1)):
-                 x_demeaned[:, :, cc] = (x_all[:, :, tp+s] -
-                                        x_all[:, :, (tp-(size_window-1)):(tp+1)].mean(2))
+            for count, s in enumerate(np.arange(size_window)-(size_window-1)):
+                x_demeaned[:, :, count] = (x_all[:, :, tp+s] -
+                                           x_all[:, :, (tp-(size_window-1)):(tp+1)].mean(2)*
+                                           int(demean))
             # reshape into trials by features*time
-            X_out = x_demeaned.reshape(x_demeaned.shape[0], x_demeaned.shape[1]*x_demeaned.shape[2])
+            X = x_demeaned.reshape(x_demeaned.shape[0],
+                                   x_demeaned.shape[1]*x_demeaned.shape[2])
         else:
-            X_out = x_all[:,:,tp]
-        
-            # reduce dimensionality
+            X = x_all[:, :, tp]
+
+        # reduce dimensionality
         if pca_components != 1:
             pca = PCA(n_components=pca_components)
-            X = pca.fit_transform(X_out)
+            X = pca.fit(X).transform(X)
+
         #train test set
         rskf = RepeatedStratifiedKFold(n_splits=n_folds,
                                        n_repeats=1, random_state=42)
-        
         for train_index, test_index in rskf.split(X, y):
             x_train, x_test = X[train_index], X[test_index]
             y_train = y[train_index]
@@ -204,16 +198,16 @@ def temporal_decoding(x_all, y, size_window=5, n_folds=5,
             clf.fit(x_train, y_train)
 
             # test either binary or class probabilities
-            single_trial_evidence[test_index, :, count] = clf.predict_proba(x_test)
-            label_pred[test_index, count] = clf.predict(x_test)
-        
+            single_trial_evidence[test_index, :, tp] = clf.predict_proba(x_test)
+            label_pred[test_index, tp] = clf.predict(x_test)
+
         #compute accuracy score 
-        accuracy[count] = accuracy_score(y, label_pred[:, count])
-        
+        accuracy[tp] = accuracy_score(y, label_pred[:, tp])
+    
     evidence = {"accuracy": accuracy,
         "single_trial_evidence": single_trial_evidence,
         "y": y}
-
+    
     return evidence
 
 
